@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Server Timekeeper</title>
+    <title>Eastern Timekeeper</title>
     <style>
         body {
             background-color: #121212;
@@ -19,64 +19,62 @@
     </style>
 </head>
 <body>
-<div id="time-display"></div>
+    <div id="time-display"></div>
 
-<script>
-    const urlParams = new URLSearchParams(window.location.search);
-    let framerate = parseInt(urlParams.get('fps'), 10);
-    if (isNaN(framerate) || framerate <= 0) {
-        framerate = 60;
-    }
-
-    let serverTime = null;
-    let startTime = Date.now();
-
-    async function getServerTime() {
-        try {
-            // Use a CORS proxy to bypass cross-origin restrictions
-            const apiUrl = 'https://worldtimeapi.org/api/timezone/Etc/UTC';
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
-
-            const response = await fetch(proxyUrl);
-            const data = await response.json();
-
-            // Get the server time in milliseconds since the Unix epoch
-            serverTime = new Date(data.datetime).getTime();
-            startTime = Date.now();
-            updateTime(); // Initial update
-
-            // Start the clock updates
-            setInterval(updateTime, 1000 / framerate);
-
-        } catch (error) {
-            document.getElementById('time-display').textContent = 'Error: Could not sync time.';
-            console.error('Error fetching server time:', error);
-        }
-    }
-
-    function updateTime() {
-        if (!serverTime) {
-            return;
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        let framerate = parseInt(urlParams.get('fps'), 10);
+        if (isNaN(framerate) || framerate <= 0) {
+            framerate = 60;
         }
 
-        const now = Date.now();
-        const elapsed = now - startTime;
-        const currentTime = new Date(serverTime + elapsed);
+        let serverTime = null;
+        let startTime = Date.now();
 
-        const hours = String(currentTime.getUTCHours()).padStart(2, '0');
-        const minutes = String(currentTime.getUTCMinutes()).padStart(2, '0');
-        const seconds = String(currentTime.getUTCSeconds()).padStart(2, '0');
+        async function getServerTime() {
+            try {
+                // Now, fetch from your own serverless function
+                const response = await fetch('/api/time');
+                const data = await response.json();
+                
+                // Get the server time in milliseconds since the Unix epoch
+                serverTime = new Date(data.datetime).getTime();
+                startTime = Date.now();
+                updateTime(); // Initial update
+                
+                // Start the clock updates
+                setInterval(updateTime, 1000 / framerate);
 
-        const milliseconds = currentTime.getUTCMilliseconds();
-        const frames = Math.floor((milliseconds / 1000) * framerate);
-        const framesFormatted = String(frames).padStart(2, '0');
+            } catch (error) {
+                document.getElementById('time-display').textContent = 'Error: Could not sync time.';
+                console.error('Error fetching server time:', error);
+            }
+        }
 
-        const timeString = `${hours}:${minutes}:${seconds}:${framesFormatted}`;
-        document.getElementById('time-display').textContent = timeString;
-    }
+        function updateTime() {
+            if (!serverTime) {
+                return;
+            }
 
-    // Start the process
-    getServerTime();
-</script>
+            const now = Date.now();
+            const elapsed = now - startTime;
+            const currentTime = new Date(serverTime + elapsed);
+
+            // Use getHours() etc. instead of getUTCHours()
+            const hours = String(currentTime.getHours()).padStart(2, '0');
+            const minutes = String(currentTime.getMinutes()).padStart(2, '0');
+            const seconds = String(currentTime.getSeconds()).padStart(2, '0');
+
+            const milliseconds = currentTime.getMilliseconds();
+            const frames = Math.floor((milliseconds / 1000) * framerate);
+            const framesFormatted = String(frames).padStart(2, '0');
+
+            const timeString = `${hours}:${minutes}:${seconds}:${framesFormatted}`;
+            document.getElementById('time-display').textContent = timeString;
+        }
+
+        // Start the process
+        getServerTime();
+    </script>
 </body>
 </html>
