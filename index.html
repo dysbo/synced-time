@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timekeeper</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-size: 8vw;
+        }
+    </style>
+</head>
+<body>
+<div id="time-display"></div>
+
+<script>
+    function updateTime() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+
+        // Get the framerate from the URL search parameters, default to 60 if not set.
+        const urlParams = new URLSearchParams(window.location.search);
+        let framerate = parseInt(urlParams.get('fps'), 10);
+        if (isNaN(framerate) || framerate <= 0) {
+            framerate = 60; // Default to 60 FPS if the parameter is invalid or missing.
+        }
+
+        // Calculate frames
+        const milliseconds = now.getMilliseconds();
+        const frames = Math.floor((milliseconds / 1000) * framerate);
+        const framesFormatted = String(frames).padStart(2, '0');
+
+        const timeString = `${hours}:${minutes}:${seconds}:${framesFormatted}`;
+        document.getElementById('time-display').textContent = timeString;
+    }
+
+    // Set the interval based on the framerate, defaulting to 60 FPS
+    const urlParams = new URLSearchParams(window.location.search);
+    let framerate = parseInt(urlParams.get('fps'), 10);
+    if (isNaN(framerate) || framerate <= 0) {
+        framerate = 60;
+    }
+    setInterval(updateTime, 1000 / framerate);
+</script>
+</body>
+</html>
