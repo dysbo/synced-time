@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Eastern Timekeeper</title>
+    <title>Consistent Timekeeper</title>
     <style>
         body {
             background-color: #121212;
@@ -19,62 +19,31 @@
     </style>
 </head>
 <body>
-    <div id="time-display"></div>
+    <div id="time-display">Connecting...</div>
 
     <script>
+        const timeDisplay = document.getElementById('time-display');
         const urlParams = new URLSearchParams(window.location.search);
-        let framerate = parseInt(urlParams.get('fps'), 10);
-        if (isNaN(framerate) || framerate <= 0) {
-            framerate = 60;
-        }
+        const framerate = urlParams.get('fps') || 60;
+        
+        // Connect to the serverless function using Server-Sent Events
+        const eventSource = new EventSource(`/api/time-stream?fps=${framerate}`);
 
-        let serverTime = null;
-        let startTime = Date.now();
+        eventSource.onmessage = (event) => {
+            // Update the display with the time from the server
+            timeDisplay.textContent = event.data;
+        };
 
-        async function getServerTime() {
-            try {
-                // Now, fetch from your own serverless function
-                const response = await fetch('/api/time');
-                const data = await response.json();
-                
-                // Get the server time in milliseconds since the Unix epoch
-                serverTime = new Date(data.datetime).getTime();
-                startTime = Date.now();
-                updateTime(); // Initial update
-                
-                // Start the clock updates
-                setInterval(updateTime, 1000 / framerate);
+        eventSource.onerror = (error) => {
+            console.error('EventSource failed:', error);
+            timeDisplay.textContent = 'Connection Error.';
+            eventSource.close();
+        };
 
-            } catch (error) {
-                document.getElementById('time-display').textContent = 'Error: Could not sync time.';
-                console.error('Error fetching server time:', error);
-            }
-        }
-
-        function updateTime() {
-            if (!serverTime) {
-                return;
-            }
-
-            const now = Date.now();
-            const elapsed = now - startTime;
-            const currentTime = new Date(serverTime + elapsed);
-
-            // Use getHours() etc. instead of getUTCHours()
-            const hours = String(currentTime.getHours()).padStart(2, '0');
-            const minutes = String(currentTime.getMinutes()).padStart(2, '0');
-            const seconds = String(currentTime.getSeconds()).padStart(2, '0');
-
-            const milliseconds = currentTime.getMilliseconds();
-            const frames = Math.floor((milliseconds / 1000) * framerate);
-            const framesFormatted = String(frames).padStart(2, '0');
-
-            const timeString = `${hours}:${minutes}:${seconds}:${framesFormatted}`;
-            document.getElementById('time-display').textContent = timeString;
-        }
-
-        // Start the process
-        getServerTime();
+        // Ensure the connection is closed when the page unloads
+        window.addEventListener('beforeunload', () => {
+            eventSource.close();
+        });
     </script>
 </body>
 </html>
