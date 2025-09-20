@@ -26,11 +26,11 @@
         const urlParams = new URLSearchParams(window.location.search);
         const framerate = urlParams.get('fps') || 60;
         
-        // Connect to the serverless function using Server-Sent Events
         const eventSource = new EventSource(`/api/time-stream?fps=${framerate}`);
 
         eventSource.onmessage = (event) => {
-            // Update the display with the time from the server
+            // The EventSource API ignores heartbeats starting with a colon.
+            // So we can assume `event.data` is always the time.
             timeDisplay.textContent = event.data;
         };
 
@@ -38,12 +38,12 @@
             console.error('EventSource failed:', error);
             timeDisplay.textContent = 'Connection Error.';
             eventSource.close();
+            
+            // Attempt to reconnect after a delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 5000);
         };
-
-        // Ensure the connection is closed when the page unloads
-        window.addEventListener('beforeunload', () => {
-            eventSource.close();
-        });
     </script>
 </body>
 </html>
