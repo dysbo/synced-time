@@ -10,6 +10,7 @@ export const useTimestamp = () => {
   const [localReceived, setLocalReceived] = useState<number>(0);
   const [time, setTime] = useState<string>();
   const [isLocal, setIsLocal] = useState(false);
+  const [retriesExpired, setRetriesExpired] = useState(false);
 
   const fps = useMemo(() => {
     const value = searchParams.get('fps');
@@ -29,6 +30,7 @@ export const useTimestamp = () => {
         const data = await response.json();
         setReferenceTime(new Date(data.utc_datetime));
         setIsLocal(false);
+        setRetriesExpired(false);
       } catch (e) {
         if (attempt < maxRetries) {
           setTimeout(() => fetchReferenceTime(attempt + 1), retryDelay);
@@ -36,7 +38,7 @@ export const useTimestamp = () => {
           setReferenceTime(new Date());
           setLocalReceived(Date.now());
           setIsLocal(true);
-          setTime(getTime(new Date(), fps) + ' (L, retries expired)');
+          setRetriesExpired(true);
         }
       }
     };
@@ -49,16 +51,17 @@ export const useTimestamp = () => {
       const elapsed = Date.now() - localReceived;
       const now = new Date(referenceTime.getTime() + elapsed);
       let display = getTime(now, fps);
-      if (isLocal) display += ' (L)';
+      if (isLocal && retriesExpired) display += ' (L, retries expired)';
+      else if (isLocal) display += ' (L)';
       setTime(display);
     };
     update();
     const id = setInterval(update, 1000 / fps);
     return () => clearInterval(id);
-  }, [referenceTime, localReceived, fps, isLocal]);
+  }, [referenceTime, localReceived, fps, isLocal, retriesExpired]);
 
   if (time) return time;
   // fallback: local time, always mark as local
   const now = new Date();
-  return getTime(now, fps) + ' (L)';
+  return getTime(now, fps) + (retriesExpired ? ' (L, retries expired)' : ' (L)');
 }
