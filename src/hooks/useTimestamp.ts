@@ -1,16 +1,17 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
 import { getTime } from '@/service/time'
 import { useSearchParams } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
 
 export const useTimestamp = () => {
   const searchParams = useSearchParams();
   const [referenceTime, setReferenceTime] = useState<Date | null>(null);
   const [localReceived, setLocalReceived] = useState<number>(0);
   const [time, setTime] = useState<string>();
-  const [isLocal, setIsLocal] = useState(false);
+  const [isLocal, setIsLocal] = useState(true); // start as local
   const [retriesExpired, setRetriesExpired] = useState(false);
+  const [pending, setPending] = useState(true); // track if waiting for server
 
   const fps = useMemo(() => {
     const value = searchParams.get('fps');
@@ -31,14 +32,16 @@ export const useTimestamp = () => {
         setReferenceTime(new Date(data.utc_datetime));
         setIsLocal(false);
         setRetriesExpired(false);
+        setPending(false);
       } catch (e) {
         if (attempt < maxRetries) {
           setTimeout(() => fetchReferenceTime(attempt + 1), retryDelay);
         } else {
-          setReferenceTime(new Date());
+          setReferenceTime(null);
           setLocalReceived(Date.now());
           setIsLocal(true);
           setRetriesExpired(true);
+          setPending(false);
         }
       }
     };
@@ -46,22 +49,27 @@ export const useTimestamp = () => {
   }, [fps]);
 
   useEffect(() => {
-    if (!referenceTime || !localReceived) return;
+    // Always update time, using local if referenceTime is not set
     const update = () => {
-      const elapsed = Date.now() - localReceived;
-      const now = new Date(referenceTime.getTime() + elapsed);
-      let display = getTime(now, fps);
-      if (isLocal && retriesExpired) display += ' (L, retries expired)';
-      else if (isLocal) display += ' (L)';
+      let now: Date;
+      let display: string;
+      if (referenceTime && localReceived && !isLocal) {
+        const elapsed = Date.now() - localReceived;
+        now = new Date(referenceTime.getTime() + elapsed);
+        display = getTime(now, fps);
+      } else {
+        now = new Date();
+        display = getTime(now, fps);
+        if (pending) display += ' (L, pending)';
+        else if (retriesExpired) display += ' (L, retries expired)';
+        else display += ' (L)';
+      }
       setTime(display);
     };
     update();
     const id = setInterval(update, 1000 / fps);
     return () => clearInterval(id);
-  }, [referenceTime, localReceived, fps, isLocal, retriesExpired]);
+  }, [referenceTime, localReceived, fps, isLocal, retriesExpired, pending]);
 
-  if (time) return time;
-  // fallback: local time, always mark as local
-  const now = new Date();
-  return getTime(now, fps) + (retriesExpired ? ' (L, retries expired)' : ' (L)');
+  return time || '';
 }
