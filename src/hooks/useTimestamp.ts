@@ -20,7 +20,9 @@ export const useTimestamp = () => {
   }, [searchParams])
 
   useEffect(() => {
-    const fetchReferenceTime = async () => {
+    const maxRetries = 10;
+    const retryDelay = 5000; // 5 seconds
+    const fetchReferenceTime = async (attempt = 1) => {
       try {
         const response = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC');
         setLocalReceived(Date.now());
@@ -28,13 +30,18 @@ export const useTimestamp = () => {
         setReferenceTime(new Date(data.utc_datetime));
         setIsLocal(false);
       } catch (e) {
-        setReferenceTime(new Date());
-        setLocalReceived(Date.now());
-        setIsLocal(true);
+        if (attempt < maxRetries) {
+          setTimeout(() => fetchReferenceTime(attempt + 1), retryDelay);
+        } else {
+          setReferenceTime(new Date());
+          setLocalReceived(Date.now());
+          setIsLocal(true);
+          setTime(getTime(new Date(), fps) + ' (L, retries expired)');
+        }
       }
     };
     void fetchReferenceTime();
-  }, []);
+  }, [fps]);
 
   useEffect(() => {
     if (!referenceTime || !localReceived) return;
